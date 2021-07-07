@@ -1,24 +1,49 @@
-import React, { useState } from 'react';
-import { NoEmitOnErrorsPlugin } from 'webpack';
+import React, { useEffect, useRef, useState } from 'react';
 
 import style from './DijkstraGraph.module.css'
 
 function DijkstraGraph(props) {
 
     const [nodeDimensions, setNodeDimensions] = useState({
-        width: "50px",
-        height: "50px"
+        size: 50
     });
+
+    const [graphSize, setGraphSize] = useState(600);
 
     const [nodes, setNodes] = useState([]);
     const [edges, setEdges] = useState([]);
 
     const [changeEdgeCost, setChangeEdgeCost] = useState(null);
+    const [changeText, setChangeText] = useState(null);
+    const costInput = useRef();
+
+    useEffect(() => {
+        if(changeEdgeCost) costInput.current.focus();
+    }, [changeEdgeCost]);
+
+    useEffect(() => {
+        if(!changeEdgeCost && changeText){
+
+            let cost = parseInt(changeText.text);
+            if(Object.is(cost, NaN) || cost > 100 || cost < 1) return;
+
+            setEdges(current => {
+                let newEdges = JSON.parse(JSON.stringify(current));
+                newEdges.forEach((edge, i) => {
+                    if(isSameEdge(changeText.edge, edge)){
+                        newEdges[i].cost = cost;
+                        return;
+                    }
+                });
+                return newEdges;
+            }); 
+        }
+    }, [changeEdgeCost, changeText]);
 
     const [tool, setTool] = useState("node");
-    const [drawEdge, setDrawEdge] = useState([]) // holds 2 objects [{ x: x, y: y}, { x: x, y: y}]
+    const [drawEdge, setDrawEdge] = useState([]); // holds 2 objects [{ x: x, y: y}, { x: x, y: y}]
 
-    let toolStyle = {}
+    let toolStyle = {};
 
     switch(tool){
         case "node": toolStyle.color = "lime"; break;
@@ -43,20 +68,32 @@ function DijkstraGraph(props) {
         <div 
         className="graph-container"
         style={{
-            width: 600,
-            height: 600,
+            width: graphSize,
+            height: graphSize,
             background: "black"
         }}
         onClick={(event) => {
 
             if(changeEdgeCost && event.target.localName !== "input") {
                 setChangeEdgeCost(null);
+            } else if(event.target.localName === "span"){
+                return null;
             }
 
-            // Handle node creation here. Handle edge creation jin the onclick of the nodes.
+            // Handle node creation here. Handle edge creation in the onclick of the nodes.
             if(tool === "node"){
+
+                const domRect = event.target.getBoundingClientRect();
+
+                const posX = event.clientX - domRect.left;
+                const posY = event.clientY - domRect.top;
+
+                if(posX <= nodeDimensions.size/2 + 1 || posX >= graphSize - nodeDimensions.size/2 + 1 ||
+                    posY <= nodeDimensions.size/2 + 1 || posY >= graphSize - nodeDimensions.size/2 + 1) return; 
+
                 for(let node of nodes){
-                    if(event.clientX === node.x && event.clientY === node.y) return;
+                    let distance = Math.sqrt(Math.pow(event.clientX - node.x, 2) + Math.pow(event.clientY - node.y, 2));
+                    if(distance <= nodeDimensions.size*2) return;
                 }
     
                 setNodes(current => {
@@ -134,7 +171,8 @@ function DijkstraGraph(props) {
                     style={{
                         top: node.y,
                         left: node.x,
-                        ...nodeDimensions
+                        width: nodeDimensions.size,
+                        height: nodeDimensions.size
                     }}
                     onClick={() => {
                         if(tool === "edge"){
@@ -232,11 +270,6 @@ function DijkstraGraph(props) {
 
             {
                 edges.map(edge => {
-
-                    if(changeEdgeCost && isSameEdge(edge, changeEdgeCost)){
-                        return null;
-                    }
-
                     return <div
                     key={Math.random()}
                     className={style["center"]}
@@ -246,7 +279,10 @@ function DijkstraGraph(props) {
                         top: `${edge.midpoint.y}px`,
                         left: `${edge.midpoint.x}px`,
                     }}
-                    onClick={() => setChangeEdgeCost(edge)}
+                    onClick={() => {
+                        setTool("edge");
+                        setChangeEdgeCost(edge);
+                    }}
                     >
                         { edge.cost }
                     </div>
@@ -265,7 +301,27 @@ function DijkstraGraph(props) {
                     left: `${changeEdgeCost.midpoint.x}px`,
                 }}
                 >
-                    Hello
+                    <input
+                        style={{
+                            // background: "none",
+                            // color: "red",
+                            border: "none",
+                            outline: "none",
+                            // boxShadow: "none"
+                        }} 
+                        onChange={(event) => {
+                            setChangeText({
+                                edge: changeEdgeCost,
+                                text: event.target.value
+                            });
+                        }} 
+                        onKeyPress={(event) => {
+                            if(event.code === "Enter" || event.key === "Enter" || event.charCode === 13){
+                                setChangeEdgeCost(null);
+                            }
+                        }}
+                        ref={costInput}
+                        type="text" />
                 </div>
             }
         </div>
