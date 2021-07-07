@@ -1,0 +1,27 @@
+.node {
+  border-radius: 100%;
+  border: 1px solid blue;
+  background: lime;
+  position: absolute;
+  -webkit-transform: translateX(-50%) translateY(-50%);
+  transform: translateX(-50%) translateY(-50%);
+}
+
+.edge {
+  /* top: 100px;
+  left: 100px; 
+  width: 223.6px; Use pythagorean on width and height of rectangle created between two circles */
+  border-top: 5px solid blue;
+  transform-origin: top left;
+  -webkit-transform-origin: top left;
+  /* -webkit-transform:
+      translateX(2px)
+      translateY(-1px)
+      rotate(26.56deg); 90 - tan^(-1)(width/height) = theta_degrees */
+  position: absolute;
+}
+
+.center {
+  -webkit-transform: translateX(-50%) translateY(-50%);
+  transform: translateX(-50%) translateY(-50%);
+}
