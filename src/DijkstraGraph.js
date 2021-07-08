@@ -14,6 +14,8 @@ function DijkstraGraph(props) {
     const [nodes, setNodes] = useState([]);
     const [edges, setEdges] = useState([]);
 
+    const [availableIdentifiers, setIdentifiers] = useState("ABCDEFGHIJKLMNOPQRSTUVWXYZ".split(""));
+
     // Generate connected graph from nodes and edges
     const graph = useMemo(() => {
 
@@ -48,20 +50,21 @@ function DijkstraGraph(props) {
                 } else {
                     graph[nodeStr] = [{ node: otherNode, cost: edge.cost }];
                 }
-
             }
 
         });
-        console.log(graph);
+
         return graph;
     }, [edges, nodes]);
 
     const isConnected = useMemo(() => {
         return Object.keys(graph).length === nodes.length;
-    }, [graph]);
+    }, [graph, nodes.length]);
 
     const [changeEdgeCost, setChangeEdgeCost] = useState(null);
     const [changeText, setChangeText] = useState(null);
+
+    const [isChangingIdentifier, setChangingIdentifier] = useState(false);
 
     const costInput = useRef();
 
@@ -131,6 +134,8 @@ function DijkstraGraph(props) {
             // Handle node creation here. Handle edge creation in the onclick of the nodes.
             if(tool === "node"){
 
+                if(availableIdentifiers.length === 0) return;
+
                 const domRect = event.target.getBoundingClientRect();
 
                 const posX = event.clientX - domRect.left;
@@ -143,16 +148,24 @@ function DijkstraGraph(props) {
                     let distance = Math.sqrt(Math.pow(event.clientX - node.x, 2) + Math.pow(event.clientY - node.y, 2));
                     if(distance <= nodeDimensions.size*2) return;
                 }
-    
+
+                let identifier = availableIdentifiers[0];
+
                 setNodes(current => {
                     let newNodes = JSON.parse(JSON.stringify(current));
                     newNodes.push({
                         x: event.clientX,
-                        y: event.clientY
+                        y: event.clientY,
+                        identifier
                     });
                     return newNodes;
                 });
 
+                setIdentifiers(current => {
+                    let newIdentifiers = JSON.parse(JSON.stringify(current));
+                    newIdentifiers.shift();
+                    return newIdentifiers;
+                });
             } 
 
         }}
@@ -212,8 +225,8 @@ function DijkstraGraph(props) {
 
             {/* Draw nodes after lines so they have click event priority */}
             {
-                nodes.map(node => 
-                    <div 
+                nodes.map(node => {
+                    return <div 
                     key={`x:${node.x} y:${node.y}`} 
                     className={style["node"]}
                     style={{
@@ -299,6 +312,15 @@ function DijkstraGraph(props) {
                                 });
                             }
 
+                            let identifier = node.identifier;
+
+                            setIdentifiers(current => {
+                                let newIdentifiers = JSON.parse(JSON.stringify(current));
+                                newIdentifiers.push(identifier);
+                                newIdentifiers.sort();
+                                return newIdentifiers;
+                            })
+
                             setNodes(current => {
                                 let arr = [];
                                 for(let testNode of current){
@@ -312,8 +334,16 @@ function DijkstraGraph(props) {
                         }
                     }}
                     >
+                        <span
+                        className={style["noselect"]}
+                        style={{
+                            fontWeight: "bold"
+                        }}
+                        >
+                            { node.identifier }
+                        </span>
                     </div>
-                )
+                })
             }
 
             {
