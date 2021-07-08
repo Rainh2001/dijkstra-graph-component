@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import style from './DijkstraGraph.module.css'
+import './DijkstraGraph.css'
 
 function DijkstraGraph(props) {
 
@@ -13,8 +14,51 @@ function DijkstraGraph(props) {
     const [nodes, setNodes] = useState([]);
     const [edges, setEdges] = useState([]);
 
+    // Generate connected graph from nodes and edges
+    const graph = useMemo(() => {
+
+        const getNode = (x, y) => {
+            for(let node of nodes){
+                if(node.x === x && node.y === y) return node;
+            }
+            return null;
+        }
+
+        const nodeToString = (node) => {
+            if(!node) return null;
+            return `x${node.x}y${node.y}`
+        }
+
+        // const nodeFromString = (nodeStr) => {
+        //     let [x, y] = nodeStr.split("[xy]").remove("");
+        //     return getNode(x, y);
+        // }
+
+        let graph = {};
+
+        edges.forEach((edge, i) => {
+            let attached = [getNode(edge.startX, edge.startY), getNode(edge.endX, edge.endY)];
+
+            for(let i = 0; i < attached.length; i++){
+                let nodeStr = nodeToString(attached[i]);
+                let otherNode = i === 0 ? attached[1] : attached[0];
+
+                if(graph[nodeStr]){ 
+                    graph[nodeStr].push({ node: otherNode, cost: edge.cost });
+                } else {
+                    graph[nodeStr] = [{ node: otherNode, cost: edge.cost }];
+                }
+
+            }
+
+        });
+
+        return graph;
+    }, [edges, nodes]);
+
     const [changeEdgeCost, setChangeEdgeCost] = useState(null);
     const [changeText, setChangeText] = useState(null);
+
     const costInput = useRef();
 
     useEffect(() => {
@@ -41,7 +85,7 @@ function DijkstraGraph(props) {
     }, [changeEdgeCost, changeText]);
 
     const [tool, setTool] = useState("node");
-    const [drawEdge, setDrawEdge] = useState([]); // holds 2 objects [{ x: x, y: y}, { x: x, y: y}]
+    const [drawEdge, setDrawEdge] = useState([]); // Should change this to a single object, no use having an array
 
     let toolStyle = {};
 
@@ -270,7 +314,15 @@ function DijkstraGraph(props) {
 
             {
                 edges.map(edge => {
-                    return <div
+
+                    let isChanging = false;
+                    if(changeEdgeCost){
+                        if(isSameEdge(changeEdgeCost, edge)){
+                            isChanging = true;
+                        }
+                    }
+
+                    return <span
                     key={Math.random()}
                     className={style["center"]}
                     style={{
@@ -284,45 +336,39 @@ function DijkstraGraph(props) {
                         setChangeEdgeCost(edge);
                     }}
                     >
-                        { edge.cost }
-                    </div>
+                        { !isChanging && edge.cost }
+                    </span>
                 })
             }
 
             {/* Edge Cost Input */}
             {
                 changeEdgeCost && 
-                <div
+                <input
                 className={style["center"]}
                 style={{
-                    color: "white",
+                    color: "red",
+                    border: "none",
+                    outline: "none",
+                    background: "none",
+                    textAlign: "center",
                     position: "absolute",
                     top: `${changeEdgeCost.midpoint.y}px`,
                     left: `${changeEdgeCost.midpoint.x}px`,
+                }} 
+                onChange={(event) => {
+                    setChangeText({
+                        edge: changeEdgeCost,
+                        text: event.target.value
+                    });
+                }} 
+                onKeyPress={(event) => {
+                    if(event.code === "Enter" || event.key === "Enter"){
+                        setChangeEdgeCost(null);
+                    }
                 }}
-                >
-                    <input
-                        style={{
-                            // background: "none",
-                            // color: "red",
-                            border: "none",
-                            outline: "none",
-                            // boxShadow: "none"
-                        }} 
-                        onChange={(event) => {
-                            setChangeText({
-                                edge: changeEdgeCost,
-                                text: event.target.value
-                            });
-                        }} 
-                        onKeyPress={(event) => {
-                            if(event.code === "Enter" || event.key === "Enter" || event.charCode === 13){
-                                setChangeEdgeCost(null);
-                            }
-                        }}
-                        ref={costInput}
-                        type="text" />
-                </div>
+                ref={costInput}
+                type="text" />
             }
         </div>
         </>
