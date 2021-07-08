@@ -57,10 +57,6 @@ function DijkstraGraph(props) {
         return graph;
     }, [edges, nodes]);
 
-    const isConnected = useMemo(() => {
-        return Object.keys(graph).length === nodes.length;
-    }, [graph, nodes.length]);
-
     const [changeEdgeCost, setChangeEdgeCost] = useState(null);
     const [changeText, setChangeText] = useState(null);
     const costInput = useRef();
