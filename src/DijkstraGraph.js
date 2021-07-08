@@ -14,6 +14,8 @@ function DijkstraGraph(props) {
     const [nodes, setNodes] = useState([]);
     const [edges, setEdges] = useState([]);
 
+    const availableIdentifiers = useRef("ABCDEFGHIJKLMNOPQRSTUVWXYZ".split(""));
+
     // Generate connected graph from nodes and edges
     const graph = useMemo(() => {
 
@@ -40,7 +42,7 @@ function DijkstraGraph(props) {
             let attached = [getNode(edge.startX, edge.startY), getNode(edge.endX, edge.endY)];
 
             for(let i = 0; i < attached.length; i++){
-                let nodeStr = nodeToString(attached[i]);
+                let nodeStr = attached[i].identifier;
                 let otherNode = i === 0 ? attached[1] : attached[0];
 
                 if(graph[nodeStr]){ 
@@ -48,7 +50,6 @@ function DijkstraGraph(props) {
                 } else {
                     graph[nodeStr] = [{ node: otherNode, cost: edge.cost }];
                 }
-
             }
 
         });
@@ -58,11 +59,10 @@ function DijkstraGraph(props) {
 
     const isConnected = useMemo(() => {
         return Object.keys(graph).length === nodes.length;
-    }, [graph]);
+    }, [graph, nodes.length]);
 
     const [changeEdgeCost, setChangeEdgeCost] = useState(null);
     const [changeText, setChangeText] = useState(null);
-
     const costInput = useRef();
 
     useEffect(() => {
@@ -87,6 +87,38 @@ function DijkstraGraph(props) {
             }); 
         }
     }, [changeEdgeCost, changeText]);
+
+    const [changeIdentifier, setChangingIdentifier] = useState(null);
+    const [newIdentifier, setNewIdentifier] = useState(null);
+    const identifierInput = useRef();
+
+    useEffect(() => {
+        if(!changeIdentifier && newIdentifier){
+            let char = newIdentifier.identifier.charAt(0).toUpperCase();
+            if(availableIdentifiers.current.indexOf(char) === -1) return;
+            
+            availableIdentifiers.current.push(newIdentifier.node.identifier);
+            const index = availableIdentifiers.current.indexOf(char);
+            availableIdentifiers.current.splice(index, 1);
+            availableIdentifiers.current.sort();
+
+            setNodes(current => {
+                let newNodes = JSON.parse(JSON.stringify(current));
+                for(let i = 0; i < newNodes.length; i++){
+                    if(isSameNode(newNodes[i], newIdentifier.node)){
+                        newNodes[i].identifier = char;
+                    }
+                }
+                return newNodes;
+            });
+
+        }
+    }, [newIdentifier, changeIdentifier]);
+
+    useEffect(() => {
+        if(changeIdentifier) identifierInput.current.focus();
+    }, [changeIdentifier])
+
 
     const [tool, setTool] = useState("node");
     const [drawEdge, setDrawEdge] = useState([]); // Should change this to a single object, no use having an array
@@ -122,14 +154,25 @@ function DijkstraGraph(props) {
         }}
         onClick={(event) => {
 
-            if(changeEdgeCost && event.target.localName !== "input") {
-                setChangeEdgeCost(null);
-            } else if(event.target.localName === "span"){
+            if(event.target.localName !== "input") {
+                if(changeEdgeCost){
+                    setChangeEdgeCost(null);
+                }
+            } 
+
+            if(changeIdentifier){
+                setChangingIdentifier(null);
+                return null;
+            }
+            
+            if(event.target.localName === "span"){
                 return null;
             }
 
             // Handle node creation here. Handle edge creation in the onclick of the nodes.
             if(tool === "node"){
+
+                if(availableIdentifiers.current.length === 0) return;
 
                 const domRect = event.target.getBoundingClientRect();
 
@@ -143,16 +186,28 @@ function DijkstraGraph(props) {
                     let distance = Math.sqrt(Math.pow(event.clientX - node.x, 2) + Math.pow(event.clientY - node.y, 2));
                     if(distance <= nodeDimensions.size*2) return;
                 }
-    
+
+                let identifier = availableIdentifiers.current[0];
+
                 setNodes(current => {
                     let newNodes = JSON.parse(JSON.stringify(current));
                     newNodes.push({
                         x: event.clientX,
-                        y: event.clientY
+                        y: event.clientY,
+                        identifier
                     });
                     return newNodes;
                 });
 
+                let newIdentifiers = JSON.parse(JSON.stringify(availableIdentifiers.current));
+                newIdentifiers.shift();
+                availableIdentifiers.current = newIdentifiers;
+
+                // setIdentifiers(current => {
+                //     let newIdentifiers = JSON.parse(JSON.stringify(current));
+                //     newIdentifiers.shift();
+                //     return newIdentifiers;
+                // });
             } 
 
         }}
@@ -212,8 +267,16 @@ function DijkstraGraph(props) {
 
             {/* Draw nodes after lines so they have click event priority */}
             {
-                nodes.map(node => 
-                    <div 
+                nodes.map(node => {
+
+                    let isChanging = false;
+                    if(changeIdentifier){
+                        if(node.identifier === changeIdentifier.identifier){
+                            isChanging = true;
+                        }
+                    }
+                    
+                    return <div 
                     key={`x:${node.x} y:${node.y}`} 
                     className={style["node"]}
                     style={{
@@ -299,6 +362,20 @@ function DijkstraGraph(props) {
                                 });
                             }
 
+                            let identifier = node.identifier;
+
+                            let newIdentifiers = JSON.parse(JSON.stringify(availableIdentifiers.current));
+                            newIdentifiers.push(identifier);
+                            newIdentifiers.sort();
+                            availableIdentifiers.current = newIdentifiers;
+
+                            // setIdentifiers(current => {
+                            //     let newIdentifiers = JSON.parse(JSON.stringify(current));
+                            //     newIdentifiers.push(identifier);
+                            //     newIdentifiers.sort();
+                            //     return newIdentifiers;
+                            // });
+
                             setNodes(current => {
                                 let arr = [];
                                 for(let testNode of current){
@@ -312,8 +389,50 @@ function DijkstraGraph(props) {
                         }
                     }}
                     >
+                        <span
+                        className={style["noselect"]}
+                        style={{
+                            fontWeight: "bold"
+                        }}
+                        onDoubleClick={() => {
+                            setTool("node");
+                            setChangingIdentifier(node);
+                        }}
+                        >
+                            { !isChanging && node.identifier }
+                        </span>
                     </div>
-                )
+                })
+            }
+
+            {
+                changeIdentifier &&
+                <input
+                className={style["center"]}
+                style={{
+                    color: "black",
+                    fontWeight: "bold",
+                    border: "none",
+                    outline: "none",
+                    background: "none",
+                    textAlign: "center",
+                    position: "absolute",
+                    top: `${changeIdentifier.y}px`,
+                    left: `${changeIdentifier.x}px`,
+                }} 
+                onChange={(event) => {
+                    setNewIdentifier({
+                        node: changeIdentifier,
+                        identifier: event.target.value
+                    });
+                }} 
+                onKeyPress={(event) => {
+                    if(event.code === "Enter" || event.key === "Enter"){
+                        setChangingIdentifier(null);
+                    }
+                }}
+                ref={identifierInput}
+                type="text" />
             }
 
             {
