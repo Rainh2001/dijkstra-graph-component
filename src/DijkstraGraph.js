@@ -52,9 +52,13 @@ function DijkstraGraph(props) {
             }
 
         });
-
+        console.log(graph);
         return graph;
     }, [edges, nodes]);
+
+    const isConnected = useMemo(() => {
+        return Object.keys(graph).length === nodes.length;
+    }, [graph]);
 
     const [changeEdgeCost, setChangeEdgeCost] = useState(null);
     const [changeText, setChangeText] = useState(null);
