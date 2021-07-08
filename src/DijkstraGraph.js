@@ -42,7 +42,7 @@ function DijkstraGraph(props) {
             let attached = [getNode(edge.startX, edge.startY), getNode(edge.endX, edge.endY)];
 
             for(let i = 0; i < attached.length; i++){
-                let nodeStr = nodeToString(attached[i]);
+                let nodeStr = attached[i].identifier;
                 let otherNode = i === 0 ? attached[1] : attached[0];
 
                 if(graph[nodeStr]){ 
@@ -53,7 +53,7 @@ function DijkstraGraph(props) {
             }
 
         });
-
+        console.log(graph);
         return graph;
     }, [edges, nodes]);
 
