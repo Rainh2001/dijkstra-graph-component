@@ -26,16 +26,6 @@ function DijkstraGraph(props) {
             return null;
         }
 
-        const nodeToString = (node) => {
-            if(!node) return null;
-            return `x${node.x}y${node.y}`
-        }
-
-        // const nodeFromString = (nodeStr) => {
-        //     let [x, y] = nodeStr.split("[xy]").remove("");
-        //     return getNode(x, y);
-        // }
-
         let graph = {};
 
         edges.forEach((edge, i) => {
@@ -53,7 +43,7 @@ function DijkstraGraph(props) {
             }
 
         });
-        console.log(graph);
+        
         return graph;
     }, [edges, nodes]);
 
