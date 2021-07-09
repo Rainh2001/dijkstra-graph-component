@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
-import style from './DijkstraGraph.module.css'
-import './DijkstraGraph.css'
+import style from './DijkstraGraph.module.css';
+import './DijkstraGraph.css';
+
+import Node from './Node.js';
 
 function DijkstraGraph(props) {
 
@@ -19,33 +21,42 @@ function DijkstraGraph(props) {
     // Generate connected graph from nodes and edges
     const graph = useMemo(() => {
 
+        let graph = {};
+
+        nodes.forEach(node => {
+            graph[node.identifier] = new Node(node.identifier, node.x, node.y);
+        });
+
         const getNode = (x, y) => {
             for(let node of nodes){
-                if(node.x === x && node.y === y) return node;
+                if(node.x === x && node.y === y) return graph[node.identifier];
             }
             return null;
         }
 
-        let graph = {};
-
-        edges.forEach((edge, i) => {
+        edges.forEach((edge) => {
             let attached = [getNode(edge.startX, edge.startY), getNode(edge.endX, edge.endY)];
 
             for(let i = 0; i < attached.length; i++){
-                let nodeStr = attached[i].identifier;
+                let currentNode = attached[i];
                 let otherNode = i === 0 ? attached[1] : attached[0];
 
-                if(graph[nodeStr]){ 
-                    graph[nodeStr].push({ node: otherNode, cost: edge.cost });
-                } else {
-                    graph[nodeStr] = [{ node: otherNode, cost: edge.cost }];
-                }
-            }
-
+                currentNode.addNeighbour(otherNode, edge.cost);
+            }       
         });
         
         return graph;
     }, [edges, nodes]);
+
+    useEffect(() => {
+        // if(!graph['A']) return;
+        // const current = graph['A'];
+
+        // for(let i = 0; i < current.neighbours.length; i++){
+        //     let neighbour = graph[current.neighbours[i].identifier];
+        //     console.log(neighbour);
+        // }
+    }, [graph]);
 
     const [changeEdgeCost, setChangeEdgeCost] = useState(null);
     const [changeText, setChangeText] = useState(null);
@@ -108,6 +119,12 @@ function DijkstraGraph(props) {
 
     const [tool, setTool] = useState("node");
     const [drawEdge, setDrawEdge] = useState([]); // Should change this to a single object, no use having an array
+
+    useEffect(() => {
+        if(tool === "edge"){
+            setDrawEdge([]);
+        }
+    }, [tool]);
 
     let toolStyle = {};
 
