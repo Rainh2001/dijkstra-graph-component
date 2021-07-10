@@ -48,16 +48,6 @@ function DijkstraGraph(props) {
         return graph;
     }, [edges, nodes]);
 
-    useEffect(() => {
-        // if(!graph['A']) return;
-        // const current = graph['A'];
-
-        // for(let i = 0; i < current.neighbours.length; i++){
-        //     let neighbour = graph[current.neighbours[i].identifier];
-        //     console.log(neighbour);
-        // }
-    }, [graph]);
-
     const [changeEdgeCost, setChangeEdgeCost] = useState(null);
     const [changeText, setChangeText] = useState(null);
     const costInput = useRef();
@@ -114,8 +104,12 @@ function DijkstraGraph(props) {
 
     useEffect(() => {
         if(changeIdentifier) identifierInput.current.focus();
-    }, [changeIdentifier])
+    }, [changeIdentifier]);
 
+    const startNodeSelect = useRef();
+    const destNodeSelect = useRef();
+
+    const [leastCostPath, setLeastCostPath] = useState(null);
 
     const [tool, setTool] = useState("node");
     const [drawEdge, setDrawEdge] = useState([]); // Should change this to a single object, no use having an array
@@ -497,6 +491,58 @@ function DijkstraGraph(props) {
                 type="text" />
             }
         </div>
+        <div>
+            <span>Choose Start Node:</span>
+            <select ref={startNodeSelect} name="start-node" id="start-node">
+            {
+                Object.keys(graph).map(key => {
+                    return <option key={key} value={key}>{key}</option>
+                })
+            }
+            </select>
+            <span>Choose Destination Node:</span>
+            <select ref={destNodeSelect} name="end-node" id="end-node">
+            {
+                Object.keys(graph).map(key => {
+                    return <option key={key} value={key}>{key}</option>
+                })
+            }
+            </select>
+            <button
+            onClick={() => {
+                setLeastCostPath(dijkstraLeastCostPath(graph, startNodeSelect.current.value, destNodeSelect.current.value));
+            }}
+            >
+                Calculate Least-Cost Path
+            </button>
+        </div>
+        {
+            leastCostPath &&
+            <div>
+                <span
+                style={{
+                    marginRight: "1rem"
+                }}
+                >Path: </span>
+                <span
+                style={{
+                    marginRight: "1rem",
+                    fontWeight: "bold"
+                }}
+                >
+                    {
+                        leastCostPath.path.split("").map((letter, i, arr)=> {
+                            let str = letter;
+                            if(i !== arr.length - 1){
+                                str += " > ";
+                            }
+                            return str;
+                        })
+                    }
+                </span>
+                <span>Cost: <span style={{fontWeight: "bold"}}>{leastCostPath.cost}</span></span>
+            </div>
+        }
         </>
     );
 }
@@ -512,6 +558,64 @@ function isSameEdge(edge1, edge2){
 function isSameNode(node1, node2){
     if(node1.x === node2.x && node1.y === node2.y) return true;
     return false;
+}
+
+function dijkstraLeastCostPath(graph, startNode, endNode){
+    if(startNode === endNode) return null;
+
+    let current = graph[startNode];
+    
+    let completedSet = new Set();
+    let distances = { [current.identifier]: { cost: 0, path: "" } };
+    let path = current.identifier;
+    let costFromCurrent = 0;
+
+    while(completedSet.size !== Object.keys(graph).length - 1){
+
+        for(let i = 0; i < current.neighbours.length; i++){
+            let neighbour = current.neighbours[i];
+            let costToNeighbour = neighbour.cost + costFromCurrent;
+            let neighbourIdentifier = neighbour.node.identifier;
+
+
+            if(distances[neighbourIdentifier]){
+                if(costToNeighbour < distances[neighbourIdentifier].cost){
+                    distances[neighbourIdentifier] = { cost: costToNeighbour, path: path };
+                }
+            } else {
+                distances[neighbourIdentifier] = { cost: costToNeighbour, path: path };
+            }
+        }
+        
+        completedSet.add(current.identifier);
+
+        let minCost = Infinity;
+        let nextNode = null;
+        
+        Object.entries(distances).forEach(entry => {
+            if(!completedSet.has(entry[0])){
+                if(entry[1].cost < minCost){
+                    minCost = entry[1].cost;
+                    // current = graph[entry[0]];
+                    nextNode = graph[entry[0]];
+                }
+            }
+        });
+
+        current = nextNode;
+
+        if(current.identifier === endNode){
+            distances[endNode].path += endNode;
+            break;
+        }
+
+        costFromCurrent = distances[current.identifier].cost;
+        path = distances[current.identifier].path + current.identifier;
+
+    }
+
+    return distances[endNode];
+
 }
 
 export default DijkstraGraph;
