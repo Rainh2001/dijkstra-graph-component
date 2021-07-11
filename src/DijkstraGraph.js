@@ -111,6 +111,10 @@ function DijkstraGraph(props) {
 
     const [leastCostPath, setLeastCostPath] = useState(null);
 
+    const [activeSimulation, setActiveSimulation] = useState(false);
+    const [dijkstraInfo, setDijkstraInfo] = useState(null);
+    const dijkstraRef = useRef(null);
+
     const [tool, setTool] = useState("node");
     const [drawEdge, setDrawEdge] = useState([]); // Should change this to a single object, no use having an array
 
@@ -510,7 +514,14 @@ function DijkstraGraph(props) {
             </select>
             <button
             onClick={() => {
-                setLeastCostPath(dijkstraLeastCostPath(graph, startNodeSelect.current.value, destNodeSelect.current.value));
+                let startNode = startNodeSelect.current.value;
+                let destNode = destNodeSelect.current.value;
+
+                if(!(startNode && destNode)) return;
+
+                dijkstraRef.current = new DijkstraTable(graph, startNode, destNode);
+                console.log(dijkstraRef.current.header);
+                setActiveSimulation(true);
             }}
             >
                 Calculate Least-Cost Path
@@ -543,6 +554,13 @@ function DijkstraGraph(props) {
                 <span>Cost: <span style={{fontWeight: "bold"}}>{leastCostPath.cost}</span></span>
             </div>
         }
+        {
+            activeSimulation &&
+            <div>
+                <button>Previous</button>
+                <button>Next</button>
+            </div>
+        }
         </>
     );
 }
@@ -560,62 +578,148 @@ function isSameNode(node1, node2){
     return false;
 }
 
-function dijkstraLeastCostPath(graph, startNode, endNode){
-    if(startNode === endNode) return null;
+class DijkstraTable {
+    constructor(graph, startNode, endNode){
+        this.graph = graph;
+        this.startNode = startNode;
+        this.endNode = endNode;
 
-    let current = graph[startNode];
-    
-    let completedSet = new Set();
-    let distances = { [current.identifier]: { cost: 0, path: "" } };
-    let path = current.identifier;
-    let costFromCurrent = 0;
+        this.currentHistory = 0;
 
-    while(completedSet.size !== Object.keys(graph).length - 1){
+        this.header = ["N Set", ...Object.keys(this.graph).filter(key => key !== this.startNode)];
 
-        for(let i = 0; i < current.neighbours.length; i++){
-            let neighbour = current.neighbours[i];
-            let costToNeighbour = neighbour.cost + costFromCurrent;
-            let neighbourIdentifier = neighbour.node.identifier;
-
-
-            if(distances[neighbourIdentifier]){
-                if(costToNeighbour < distances[neighbourIdentifier].cost){
-                    distances[neighbourIdentifier] = { cost: costToNeighbour, path: path };
-                }
-            } else {
-                distances[neighbourIdentifier] = { cost: costToNeighbour, path: path };
-            }
-        }
+        // History entry
+        // {
+        //     "A": {
+        //         "B": { distance, prevNode },
+        //         "C": { distance, prevNode }
+        //     },
+        //     "AB": {
+        //         "B": { distance, prevNode },
+        //         "C": { distance, prevNode }
+        //     },
+        //     "ABC": {
+        //         "B": { distance, prevNode },
+        //         "C": { distance, prevNode }
+        //     }
+        // }
         
-        completedSet.add(current.identifier);
-
-        let minCost = Infinity;
-        let nextNode = null;
-        
-        Object.entries(distances).forEach(entry => {
-            if(!completedSet.has(entry[0])){
-                if(entry[1].cost < minCost){
-                    minCost = entry[1].cost;
-                    // current = graph[entry[0]];
-                    nextNode = graph[entry[0]];
-                }
-            }
-        });
-
-        current = nextNode;
-
-        if(current.identifier === endNode){
-            distances[endNode].path += endNode;
-            break;
-        }
-
-        costFromCurrent = distances[current.identifier].cost;
-        path = distances[current.identifier].path + current.identifier;
-
+        this.path = this.calculateLeastCostPath();
     }
 
-    return distances[endNode];
+    calculateLeastCostPath(){
+        if(this.startNode === this.endNode) return null;
 
+        let current = this.graph[this.startNode];
+        
+        let completedSet = new Set();
+        let distances = { [current.identifier]: { cost: 0, path: "" } };
+        let path = current.identifier;
+        let costFromCurrent = 0;
+
+        while(completedSet.size !== Object.keys(this.graph).length - 1){
+
+            for(let i = 0; i < current.neighbours.length; i++){
+                let neighbour = current.neighbours[i];
+                let costToNeighbour = neighbour.cost + costFromCurrent;
+                let neighbourIdentifier = neighbour.node.identifier;
+
+
+                if(distances[neighbourIdentifier]){
+                    if(costToNeighbour < distances[neighbourIdentifier].cost){
+                        distances[neighbourIdentifier] = { cost: costToNeighbour, path: path };
+                    }
+                } else {
+                    distances[neighbourIdentifier] = { cost: costToNeighbour, path: path };
+                }
+            }
+            
+            completedSet.add(current.identifier);
+
+            let minCost = Infinity;
+            let nextNode = null;
+            
+            Object.entries(distances).forEach(entry => {
+                if(!completedSet.has(entry[0])){
+                    if(entry[1].cost < minCost){
+                        minCost = entry[1].cost;
+                        nextNode = this.graph[entry[0]];
+                    }
+                }
+            });
+
+            current = nextNode;
+
+            if(current.identifier === this.endNode){
+                distances[this.endNode].path += this.endNode;
+                break;
+            }
+
+            costFromCurrent = distances[current.identifier].cost;
+            path = distances[current.identifier].path + current.identifier;
+
+        }
+
+        return distances[this.endNode];
+    }
 }
+
+// function dijkstraLeastCostPath(graph, startNode, endNode){
+//     if(startNode === endNode) return null;
+
+//     let current = graph[startNode];
+    
+//     let completedSet = new Set();
+//     let distances = { [current.identifier]: { cost: 0, path: "" } };
+//     let path = current.identifier;
+//     let costFromCurrent = 0;
+
+//     while(completedSet.size !== Object.keys(graph).length - 1){
+
+//         for(let i = 0; i < current.neighbours.length; i++){
+//             let neighbour = current.neighbours[i];
+//             let costToNeighbour = neighbour.cost + costFromCurrent;
+//             let neighbourIdentifier = neighbour.node.identifier;
+
+
+//             if(distances[neighbourIdentifier]){
+//                 if(costToNeighbour < distances[neighbourIdentifier].cost){
+//                     distances[neighbourIdentifier] = { cost: costToNeighbour, path: path };
+//                 }
+//             } else {
+//                 distances[neighbourIdentifier] = { cost: costToNeighbour, path: path };
+//             }
+//         }
+        
+//         completedSet.add(current.identifier);
+
+//         let minCost = Infinity;
+//         let nextNode = null;
+        
+//         Object.entries(distances).forEach(entry => {
+//             if(!completedSet.has(entry[0])){
+//                 if(entry[1].cost < minCost){
+//                     minCost = entry[1].cost;
+//                     // current = graph[entry[0]];
+//                     nextNode = graph[entry[0]];
+//                 }
+//             }
+//         });
+
+//         current = nextNode;
+
+//         if(current.identifier === endNode){
+//             distances[endNode].path += endNode;
+//             break;
+//         }
+
+//         costFromCurrent = distances[current.identifier].cost;
+//         path = distances[current.identifier].path + current.identifier;
+
+//     }
+
+//     return distances[endNode];
+
+// }
 
 export default DijkstraGraph;
