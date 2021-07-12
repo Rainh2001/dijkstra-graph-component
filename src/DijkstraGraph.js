@@ -3,8 +3,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import style from './DijkstraGraph.module.css';
 import './DijkstraGraph.css';
 
-import Node from './Node.js';
-
 function DijkstraGraph(props) {
 
     let identifierArr = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
@@ -973,6 +971,19 @@ class DijkstraTable {
 
         }
         return distances[this.endNode];
+    }
+}
+
+class Node {
+    constructor(identifier, x, y){
+        this.identifier = identifier;
+        this.x = x;
+        this.y = y;
+        this.neighbours = [];
+    }
+
+    addNeighbour(node, edgeCost){
+        this.neighbours.push({ node, cost: edgeCost });
     }
 }
 
