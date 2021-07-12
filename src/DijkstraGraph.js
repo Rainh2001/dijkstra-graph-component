@@ -115,6 +115,13 @@ function DijkstraGraph(props) {
     const [dijkstraInfo, setDijkstraInfo] = useState(null);
     const dijkstraRef = useRef(null);
 
+    function getDijkstraTable(){
+        return {
+            header: dijkstraRef.current.getHeader(),
+            distances: dijkstraRef.current.getCurrentDistances()
+        }
+    }
+
     const [tool, setTool] = useState("node");
     const [drawEdge, setDrawEdge] = useState([]); // Should change this to a single object, no use having an array
 
@@ -520,7 +527,7 @@ function DijkstraGraph(props) {
                 if(!(startNode && destNode)) return;
 
                 dijkstraRef.current = new DijkstraTable(graph, startNode, destNode);
-                console.log(dijkstraRef.current.header);
+                setDijkstraInfo(getDijkstraTable());
                 setActiveSimulation(true);
             }}
             >
@@ -557,8 +564,25 @@ function DijkstraGraph(props) {
         {
             activeSimulation &&
             <div>
-                <button>Previous</button>
-                <button>Next</button>
+                <button
+                onClick={() => {
+                    setDijkstraInfo(dijkstraRef.current.getPreviousDistances());
+                }}
+                >Previous</button>
+                <button
+                onClick={() => {
+                    setDijkstraInfo(dijkstraRef.current.getNextDistances());
+                }}
+                >Next</button>
+                <table>
+                    <tr>
+                        {
+                            dijkstraInfo.header.map(headData => 
+                                <td>{ headData }</td>    
+                            )
+                        }
+                    </tr>
+                </table>
             </div>
         }
         </>
@@ -586,7 +610,8 @@ class DijkstraTable {
 
         this.currentHistory = 0;
 
-        this.header = ["N Set", ...Object.keys(this.graph).filter(key => key !== this.startNode)];
+        this.otherNodes = Object.keys(this.graph).filter(key => key !== this.startNode);
+        this.header = ["Set", ...this.otherNodes];
 
         // History entry
         // {
@@ -603,8 +628,49 @@ class DijkstraTable {
         //         "C": { distance, prevNode }
         //     }
         // }
+
+        this.history = ["stub"];
+
+        // this.history = [
+        //     {
+        //         "A": {
+        //             "B": { distance, prevNode },
+        //             "C": { distance, prevNode }
+        //         },
+        //         "AB": {
+        //             "B": { distance, prevNode },
+        //             "C": { distance, prevNode }
+        //         },
+        //         "ABC": {
+        //             "B": { distance, prevNode },
+        //             "C": { distance, prevNode }
+        //         }
+        //     }
+        // ]
         
         this.path = this.calculateLeastCostPath();
+    }
+
+    getHeader(){
+        return this.header;
+    }
+
+    getCurrentDistances(){
+        return this.history[this.currentHistory];
+    }
+
+    getNextDistances(){
+        if(this.currentHistory !== this.history.length-1){
+            this.currentHistory++;
+        }
+        return this.getCurrentDistances();
+    }
+
+    getPreviousDistances(){
+        if(this.currentHistory !== 0){
+            this.currentHistory--;
+        }
+        return this.getCurrentDistances();
     }
 
     calculateLeastCostPath(){
@@ -617,24 +683,59 @@ class DijkstraTable {
         let path = current.identifier;
         let costFromCurrent = 0;
 
+        let table = [[...this.header]];
+
+        let indexMap = new Map();
+        this.header.forEach((key, i) => {
+            if(key !== "Set") {
+                indexMap.set(key, i);
+            }
+        });
+
         while(completedSet.size !== Object.keys(this.graph).length - 1){
+
+            table.push([]);
+            table[table.length-1].push([...completedSet, current.identifier].join(""));
+            for(let i = 0; i < this.otherNodes.length; i++){
+                table[table.length-1].push("");
+            }
 
             for(let i = 0; i < current.neighbours.length; i++){
                 let neighbour = current.neighbours[i];
                 let costToNeighbour = neighbour.cost + costFromCurrent;
                 let neighbourIdentifier = neighbour.node.identifier;
 
+                let index = indexMap.get(neighbourIdentifier);
+
+                const setDistance = () => {
+                    distances[neighbourIdentifier] = { cost: costToNeighbour, path: path };
+                    table[table.length-1][index] = `${costToNeighbour}${path.charAt(path.length-1)}`
+                }
 
                 if(distances[neighbourIdentifier]){
                     if(costToNeighbour < distances[neighbourIdentifier].cost){
-                        distances[neighbourIdentifier] = { cost: costToNeighbour, path: path };
+                        setDistance();
                     }
                 } else {
-                    distances[neighbourIdentifier] = { cost: costToNeighbour, path: path };
+                    setDistance();
                 }
             }
-            
+
             completedSet.add(current.identifier);
+
+            for(let i = 1; i < this.header.length; i++){
+                let testIdentifier = this.header[i];
+                if(table[table.length-1][i] === ""){
+                    if(!completedSet.has(testIdentifier)){
+                        let distance = distances[testIdentifier];
+                        if(distance){
+                            table[table.length-1][i] = `${distance.cost}${distance.path.charAt(distance.path.length-1)}`;
+                        } else {
+                            table[table.length-1][i] = "inf";
+                        }
+                    }
+                }
+            }
 
             let minCost = Infinity;
             let nextNode = null;
@@ -659,7 +760,7 @@ class DijkstraTable {
             path = distances[current.identifier].path + current.identifier;
 
         }
-
+        console.table(table);
         return distances[this.endNode];
     }
 }
