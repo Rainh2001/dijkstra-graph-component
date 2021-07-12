@@ -247,7 +247,7 @@ function DijkstraGraph(props) {
                     }
 
                     let activeEdge = false;
-                    if(dijkstraInfo.highlighted){
+                    if(dijkstraInfo?.highlighted){
                         let connectedToCurrent = false;
                         let connectedToNeighbour = false;
 
@@ -309,7 +309,7 @@ function DijkstraGraph(props) {
 
                     let background = "blue";
                     let originalColor = background;
-                    if(dijkstraInfo.highlighted){
+                    if(dijkstraInfo?.highlighted){
                         if(dijkstraInfo.highlighted.current === node.identifier){
                             background = "#0FFFFF"
                         } else if(dijkstraInfo.highlighted.neighbour === node.identifier){
@@ -624,7 +624,7 @@ function DijkstraGraph(props) {
                     <div
                     style={{
                         display: "grid",
-                        gridTemplateColumns: `repeat(${dijkstraInfo.table[0].length}, ${dijkstraInfo.table[0].length-1}rem)`
+                        gridTemplateColumns: `repeat(${dijkstraInfo.table[0].length}, ${dijkstraInfo.table[0].length}em)`
                     }}
                     >
                         {
@@ -685,26 +685,37 @@ class DijkstraTable {
     }
 
     getNextDistances(){
-        if(this.currentHistory !== this.history.length-1){
+        if(this.currentHistory !== this.history.length){
             this.currentHistory++;
-        } else {
+        }
+
+        if(this.currentHistory === this.history.length) {
+            this.currentHistory--;
             let newDistances = JSON.parse(JSON.stringify(this.getCurrentDistances()));
+            this.currentHistory++;
             newDistances.highlighted.current = null;
             newDistances.highlighted.neighbour = null;
             return newDistances;
         }
+
         return this.getCurrentDistances();
     }
 
     getPreviousDistances(){
-        if(this.currentHistory !== 0){
+
+        if(this.currentHistory !== -1){
             this.currentHistory--;
-        } else {
+        }
+
+        if(this.currentHistory === -1) {
+            this.currentHistory++;
             let newDistances = JSON.parse(JSON.stringify(this.getCurrentDistances()));
+            this.currentHistory--;
             newDistances.highlighted.current = null;
             newDistances.highlighted.neighbour = null;
             return newDistances;
         }
+
         return this.getCurrentDistances();
     }
 
