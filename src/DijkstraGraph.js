@@ -758,6 +758,10 @@ class DijkstraTable {
                 if(distances[neighbourIdentifier]){
                     if(costToNeighbour < distances[neighbourIdentifier].cost){
                         setDistance();
+                    } else {
+                        if(!completedSet.has(neighbourIdentifier)){
+                            table[table.length-1][index] = table[table.length-2][index];
+                        }
                     }
                 } else {
                     setDistance();
@@ -774,6 +778,7 @@ class DijkstraTable {
 
             completedSet.add(current.identifier);
 
+            // Integrate this into the neighbours loop, then finito
             for(let i = 1; i < this.header.length; i++){
                 let testIdentifier = this.header[i];
                 if(table[table.length-1][i] === ""){
@@ -821,7 +826,6 @@ class DijkstraTable {
             path = distances[current.identifier].path + current.identifier;
 
         }
-        console.table(table);
         return distances[this.endNode];
     }
 }
