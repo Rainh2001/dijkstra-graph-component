@@ -7,16 +7,61 @@ import Node from './Node.js';
 
 function DijkstraGraph(props) {
 
+    let identifierArr = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+    const availableIdentifiers = useRef();
+
     const [nodeDimensions, setNodeDimensions] = useState({
         size: 50
     });
 
     const [graphSize, setGraphSize] = useState(600);
 
+    const saveInput = useRef();
+
+    const [saves, setSaves] = useState([]);
+
+    const [removeSave, setRemoveSave] = useState(false);
+
     const [nodes, setNodes] = useState([]);
     const [edges, setEdges] = useState([]);
 
-    const availableIdentifiers = useRef("ABCDEFGHIJKLMNOPQRSTUVWXYZ".split(""));
+    const setGraph = (newNodes, newEdges) => {
+        setNodes(newNodes);
+        setEdges(newEdges);
+
+        availableIdentifiers.current = identifierArr;
+        newNodes.forEach(node => {
+            availableIdentifiers.current = availableIdentifiers.current.filter(elem => elem !== node.identifier);
+        });
+    }
+
+    useEffect(() => {
+        let dijkstraSaves = JSON.parse(localStorage.getItem("dijkstraSaves")) || [];
+        setSaves(dijkstraSaves);
+
+        let refreshSave = JSON.parse(localStorage.getItem("dijkstraRefresh")) || {
+            nodes: [],
+            edges: []
+        };
+        setNodes(refreshSave.nodes);
+        setEdges(refreshSave.edges);
+
+        availableIdentifiers.current = identifierArr;
+        refreshSave.nodes.forEach(node => {
+            availableIdentifiers.current = availableIdentifiers.current.filter(elem => elem !== node.identifier);
+        });
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem("dijkstraRefresh", JSON.stringify({
+            nodes, edges
+        }));
+    }, [edges, nodes]);
+
+    useEffect(() => {
+        localStorage.setItem("dijkstraSaves", JSON.stringify(saves));
+    }, [saves]);
 
     // Generate connected graph from nodes and edges
     const graph = useMemo(() => {
@@ -537,6 +582,71 @@ function DijkstraGraph(props) {
                 type="text" />
             }
         </div>
+
+        <div
+        style={{
+            marginBottom: "1rem"
+        }}
+        >
+            <input ref={saveInput} type="text" placeholder="Save Name"/>
+            <button
+            onClick={() => { 
+                if(saveInput.current.value !== ""){
+                    let saveName = saveInput.current.value;
+                    setSaves(current => {
+                        let isValid = true;
+                        current.forEach(save => {
+                            if(save.name === saveName){
+                                isValid = false;
+                            }
+                        });
+                        if(!isValid) return current;
+
+                        return [
+                            ...current,
+                            { name: saveName, nodes, edges }
+                        ];
+                    });
+                }
+                saveInput.current.value = "";
+            }}
+            >Save</button>
+            <button
+            onClick={() => {
+                setRemoveSave(!removeSave);
+            }}
+            >Toggle Remove</button>
+            <span
+            style={{
+                color: "red"
+            }}
+            >
+                { removeSave ? "Warning! Remove mode is toggled!" : null }
+            </span>
+            <div>
+                <span>{ saves.length > 0 ? "Saves: " : null }</span>
+                {
+                    saves.map(save => 
+                        <button
+                        key={save.name}
+                        onClick={() => {
+                            if(removeSave){
+                                setSaves(current => {
+                                    let newSaves = JSON.parse(JSON.stringify(current));
+                                    newSaves = newSaves.filter(testSave => testSave.name !== save.name);
+                                    return newSaves;
+                                });
+                            } else {    
+                                setDijkstraInfo(null);
+                                setGraph(save.nodes, save.edges);
+                            }   
+                        }}
+                        >{ save.name }</button>
+                    )
+                }
+            </div>
+        </div>
+
         <div>
             <span>Choose Start Node:</span>
             <select ref={startNodeSelect} name="start-node" id="start-node">
@@ -556,10 +666,11 @@ function DijkstraGraph(props) {
             </select>
             <button
             onClick={() => {
+
                 let startNode = startNodeSelect.current.value;
                 let destNode = destNodeSelect.current.value;
 
-                if(!(startNode && destNode)) return;
+                if(!(startNode && destNode) || startNode === destNode) return;
 
                 dijkstraRef.current = new DijkstraTable(graph, startNode, destNode);
                 setDijkstraInfo(dijkstraRef.current.getCurrentDistances());
@@ -619,23 +730,37 @@ function DijkstraGraph(props) {
                     setDijkstraInfo(() => dijkstraRef.current.getNextDistances());
                 }}
                 >Next</button>
+                <button
+                style={{
+                    marginLeft: "2rem"
+                }}
+                onClick={() => {
+                    setDijkstraInfo(dijkstraRef.current.getEmptyTable());
+                }}
+                >Start Again</button>
+                <button
+                onClick={() => {
+                    setDijkstraInfo(dijkstraRef.current.getFullTable());
+                }}
+                >Show Full Table</button>
                 {
-                    dijkstraInfo.table &&
+                    dijkstraInfo?.table &&
                     <div
                     style={{
                         display: "grid",
-                        gridTemplateColumns: `repeat(${dijkstraInfo.table[0].length}, ${dijkstraInfo.table[0].length}em)`
+                        // gridTemplateColumns: `repeat(${dijkstraInfo.table[0].length}, clamp(30px, ${20 + dijkstraInfo.table[0].length*10}px, 100px))`
+                        gridTemplateColumns: `repeat(${dijkstraInfo.table[0].length}, auto)`
                     }}
                     >
                         {
                             dijkstraInfo.table.map((row, i) => {
                                 return row.map((cell, j) => {
-                                    return <div 
+                                    return <span
                                     key={`i${i}j${j}`}
                                     style={{
                                         background: i % 2 === 0 ? "lightblue" : "white"
                                     }}
-                                    >{ cell === "inf" ? `\u221E` : cell }</div>
+                                    >{ cell === "inf" ? `\u221E` : cell }</span>
                                 });
                             })
                         }
@@ -682,6 +807,16 @@ class DijkstraTable {
 
     getCurrentDistances(){
         return this.history[this.currentHistory];
+    }
+
+    getEmptyTable(){
+        this.currentHistory = 0;
+        return this.getPreviousDistances();
+    }
+
+    getFullTable(){
+        this.currentHistory = this.history.length-1;
+        return this.getNextDistances();
     }
 
     getNextDistances(){
