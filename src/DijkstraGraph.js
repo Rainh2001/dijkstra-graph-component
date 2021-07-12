@@ -246,6 +246,28 @@ function DijkstraGraph(props) {
                         angle = Math.PI/2 - angle;
                     }
 
+                    let activeEdge = false;
+                    if(dijkstraInfo.highlighted){
+                        let connectedToCurrent = false;
+                        let connectedToNeighbour = false;
+
+                        const isNodeConnected = (edge, node) => {
+                            if((edge.startX === node.x && edge.startY === node.y) || 
+                            (edge.endX === node.x && edge.endY === node.y)) return true;
+                            return false;
+                        }
+
+                        nodes.forEach(node => {
+                            if(node.identifier === dijkstraInfo.highlighted.current){
+                                connectedToCurrent = isNodeConnected(edge, node);
+                            } else if(node.identifier === dijkstraInfo.highlighted.neighbour){
+                                connectedToNeighbour = isNodeConnected(edge, node);
+                            }
+                        });
+
+                        if(connectedToCurrent && connectedToNeighbour) activeEdge = true;
+                    }
+
                     return <div
                     className={style["edge"]}
                     key={`start:(${edge.startX}, ${edge.startY}) end:(${edge.endX}, ${edge.endY})`}
@@ -253,7 +275,8 @@ function DijkstraGraph(props) {
                         top: edge.startY,
                         left: edge.startX,
                         width: edgeWidth,
-                        transform: `rotate(${angle}rad)`
+                        transform: `rotate(${angle}rad)`,
+                        borderTop: `5px solid ${activeEdge ? "yellow" : "blue" }`
                     }}
                     onClick={() => {
                         if(tool === "remove"){
@@ -283,6 +306,16 @@ function DijkstraGraph(props) {
                             isChanging = true;
                         }
                     }
+
+                    let background = "blue";
+                    let originalColor = background;
+                    if(dijkstraInfo.highlighted){
+                        if(dijkstraInfo.highlighted.current === node.identifier){
+                            background = "#0FFFFF"
+                        } else if(dijkstraInfo.highlighted.neighbour === node.identifier){
+                            background = "yellow"
+                        }
+                    }
                     
                     return <div 
                     key={`x:${node.x} y:${node.y}`} 
@@ -291,7 +324,9 @@ function DijkstraGraph(props) {
                         top: node.y,
                         left: node.x,
                         width: nodeDimensions.size,
-                        height: nodeDimensions.size
+                        height: nodeDimensions.size,
+                        borderColor: background,
+                        borderWidth: background === originalColor ? "1px" : "5px"
                     }}
                     onClick={() => {
                         if(tool === "edge"){
@@ -585,17 +620,22 @@ function DijkstraGraph(props) {
                 }}
                 >Next</button>
                 {
-                    dijkstraInfo &&
+                    dijkstraInfo.table &&
                     <div
                     style={{
                         display: "grid",
-                        gridTemplateColumns: `repeat(${dijkstraInfo[0].length}, ${dijkstraInfo[0].length-1}rem)`
+                        gridTemplateColumns: `repeat(${dijkstraInfo.table[0].length}, ${dijkstraInfo.table[0].length-1}rem)`
                     }}
                     >
                         {
-                            dijkstraInfo.map((row, i) => {
+                            dijkstraInfo.table.map((row, i) => {
                                 return row.map((cell, j) => {
-                                    return <div key={`i${i}j${j}`}>{ cell === "inf" ? `\u221E` : cell }</div>
+                                    return <div 
+                                    key={`i${i}j${j}`}
+                                    style={{
+                                        background: i % 2 === 0 ? "lightblue" : "white"
+                                    }}
+                                    >{ cell === "inf" ? `\u221E` : cell }</div>
                                 });
                             })
                         }
@@ -647,6 +687,11 @@ class DijkstraTable {
     getNextDistances(){
         if(this.currentHistory !== this.history.length-1){
             this.currentHistory++;
+        } else {
+            let newDistances = JSON.parse(JSON.stringify(this.getCurrentDistances()));
+            newDistances.highlighted.current = null;
+            newDistances.highlighted.neighbour = null;
+            return newDistances;
         }
         return this.getCurrentDistances();
     }
@@ -654,6 +699,11 @@ class DijkstraTable {
     getPreviousDistances(){
         if(this.currentHistory !== 0){
             this.currentHistory--;
+        } else {
+            let newDistances = JSON.parse(JSON.stringify(this.getCurrentDistances()));
+            newDistances.highlighted.current = null;
+            newDistances.highlighted.neighbour = null;
+            return newDistances;
         }
         return this.getCurrentDistances();
     }
@@ -685,7 +735,13 @@ class DijkstraTable {
                 table[table.length-1].push("");
             }
 
-            this.history.push(JSON.parse(JSON.stringify(table)));
+            this.history.push({
+                table: JSON.parse(JSON.stringify(table)),
+                highlighted: {
+                    current: current.identifier,
+                    neighbour: null,
+                }
+            });
 
             for(let i = 0; i < current.neighbours.length; i++){
                 let neighbour = current.neighbours[i];
@@ -702,12 +758,18 @@ class DijkstraTable {
                 if(distances[neighbourIdentifier]){
                     if(costToNeighbour < distances[neighbourIdentifier].cost){
                         setDistance();
-                        this.history.push(JSON.parse(JSON.stringify(table)));
                     }
                 } else {
                     setDistance();
-                    this.history.push(JSON.parse(JSON.stringify(table)));
                 }
+
+                this.history.push({
+                    table: JSON.parse(JSON.stringify(table)),
+                    highlighted: {
+                        current: current.identifier,
+                        neighbour: neighbourIdentifier,
+                    }
+                });
             }
 
             completedSet.add(current.identifier);
@@ -722,7 +784,13 @@ class DijkstraTable {
                         } else {
                             table[table.length-1][i] = "inf";
                         }
-                        this.history.push(JSON.parse(JSON.stringify(table)));
+                        this.history.push({
+                            table: JSON.parse(JSON.stringify(table)),
+                            highlighted: {
+                                current: current.identifier,
+                                neighbour: null,
+                            }
+                        });
                     }
                 }
             }
