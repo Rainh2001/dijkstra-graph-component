@@ -527,7 +527,8 @@ function DijkstraGraph(props) {
                 if(!(startNode && destNode)) return;
 
                 dijkstraRef.current = new DijkstraTable(graph, startNode, destNode);
-                setDijkstraInfo(getDijkstraTable());
+                setDijkstraInfo(dijkstraRef.current.getCurrentDistances());
+                setLeastCostPath(dijkstraRef.current.path);
                 setActiveSimulation(true);
             }}
             >
@@ -536,7 +537,12 @@ function DijkstraGraph(props) {
         </div>
         {
             leastCostPath &&
-            <div>
+            <div
+            style={{
+                marginTop: "1rem",
+                marginBottom: "1rem"
+            }}
+            >
                 <span
                 style={{
                     marginRight: "1rem"
@@ -563,26 +569,38 @@ function DijkstraGraph(props) {
         }
         {
             activeSimulation &&
-            <div>
+            <div
+            style={{    
+                marginBottom: "5rem"
+            }}
+            >
                 <button
                 onClick={() => {
-                    setDijkstraInfo(dijkstraRef.current.getPreviousDistances());
+                    setDijkstraInfo(() => dijkstraRef.current.getPreviousDistances());
                 }}
                 >Previous</button>
                 <button
                 onClick={() => {
-                    setDijkstraInfo(dijkstraRef.current.getNextDistances());
+                    setDijkstraInfo(() => dijkstraRef.current.getNextDistances());
                 }}
                 >Next</button>
-                <table>
-                    <tr>
+                {
+                    dijkstraInfo &&
+                    <div
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: `repeat(${dijkstraInfo[0].length}, ${dijkstraInfo[0].length-1}rem)`
+                    }}
+                    >
                         {
-                            dijkstraInfo.header.map(headData => 
-                                <td>{ headData }</td>    
-                            )
+                            dijkstraInfo.map((row, i) => {
+                                return row.map((cell, j) => {
+                                    return <div key={`i${i}j${j}`}>{ cell === "inf" ? `\u221E` : cell }</div>
+                                });
+                            })
                         }
-                    </tr>
-                </table>
+                    </div>
+                }
             </div>
         }
         </>
@@ -613,40 +631,7 @@ class DijkstraTable {
         this.otherNodes = Object.keys(this.graph).filter(key => key !== this.startNode);
         this.header = ["Set", ...this.otherNodes];
 
-        // History entry
-        // {
-        //     "A": {
-        //         "B": { distance, prevNode },
-        //         "C": { distance, prevNode }
-        //     },
-        //     "AB": {
-        //         "B": { distance, prevNode },
-        //         "C": { distance, prevNode }
-        //     },
-        //     "ABC": {
-        //         "B": { distance, prevNode },
-        //         "C": { distance, prevNode }
-        //     }
-        // }
-
-        this.history = ["stub"];
-
-        // this.history = [
-        //     {
-        //         "A": {
-        //             "B": { distance, prevNode },
-        //             "C": { distance, prevNode }
-        //         },
-        //         "AB": {
-        //             "B": { distance, prevNode },
-        //             "C": { distance, prevNode }
-        //         },
-        //         "ABC": {
-        //             "B": { distance, prevNode },
-        //             "C": { distance, prevNode }
-        //         }
-        //     }
-        // ]
+        this.history = [];
         
         this.path = this.calculateLeastCostPath();
     }
@@ -700,6 +685,8 @@ class DijkstraTable {
                 table[table.length-1].push("");
             }
 
+            this.history.push(JSON.parse(JSON.stringify(table)));
+
             for(let i = 0; i < current.neighbours.length; i++){
                 let neighbour = current.neighbours[i];
                 let costToNeighbour = neighbour.cost + costFromCurrent;
@@ -715,9 +702,11 @@ class DijkstraTable {
                 if(distances[neighbourIdentifier]){
                     if(costToNeighbour < distances[neighbourIdentifier].cost){
                         setDistance();
+                        this.history.push(JSON.parse(JSON.stringify(table)));
                     }
                 } else {
                     setDistance();
+                    this.history.push(JSON.parse(JSON.stringify(table)));
                 }
             }
 
@@ -733,6 +722,7 @@ class DijkstraTable {
                         } else {
                             table[table.length-1][i] = "inf";
                         }
+                        this.history.push(JSON.parse(JSON.stringify(table)));
                     }
                 }
             }
@@ -743,6 +733,9 @@ class DijkstraTable {
             Object.entries(distances).forEach(entry => {
                 if(!completedSet.has(entry[0])){
                     if(entry[1].cost < minCost){
+                        minCost = entry[1].cost;
+                        nextNode = this.graph[entry[0]];
+                    } else if(entry[0] === this.endNode && entry[1].cost === minCost){
                         minCost = entry[1].cost;
                         nextNode = this.graph[entry[0]];
                     }
